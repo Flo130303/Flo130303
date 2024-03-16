@@ -1,0 +1,290 @@
+# T<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decentralized Search Engine</title>
+    <style>
+        /* Basic CSS styling */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        #search-input {
+            width: calc(100% - 110px);
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+        #search-btn {
+            width: 100px;
+            padding: 10px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #search-btn:hover {
+            background-color: #0056b3;
+        }
+        #search-results {
+            list-style-type: none;
+            padding: 0;
+            margin-top: 20px;
+        }
+        .result-item {
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+        }
+        .result-item:hover {
+            background-color: #f0f0f0;
+        }
+        .result-title {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        .result-url {
+            font-size: 14px;
+            color: #666;
+        }
+        #loading-spinner {
+            display: none;
+            margin-top: 20px;
+        }
+        #pagination {
+            margin-top: 20px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 80%;
+            animation-name: zoom;
+            animation-duration: 0.6s;
+        }
+        @keyframes zoom {
+            from {
+                transform: scale(0)
+            }
+            to {
+                transform: scale(1)
+            }
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Decentralized Search Engine</h1>
+        <div>
+            <input type="text" id="search-input" placeholder="Enter your search query">
+            <button id="search-btn" onclick="search()">Search</button>
+        </div>
+        <div id="autocomplete-results"></div>
+        <div id="loading-spinner">Searching... <span>Loading...</span></div>
+        <p id="result-count"></p>
+        <ul id="search-results"></ul>
+        <div id="pagination"></div>
+    </div>
+
+    <!-- Modal for displaying search result details -->
+    <div id="result-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modal-title"></h2>
+            <p id="modal-url"></p>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        const pageSize = 10;
+
+        function search() {
+            const query = document.getElementById('search-input').value.trim();
+            const searchResults = document.getElementById('search-results');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const resultCount = document.getElementById('result-count');
+            const pagination = document.getElementById('pagination');
+            currentPage = 1;
+
+            searchResults.innerHTML = '';
+            resultCount.textContent = '';
+            pagination.innerHTML = '';
+
+            loadingSpinner.style.display = 'block';
+
+            fetch(`/search?q=${query}&page=${currentPage}&size=${pageSize}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    loadingSpinner.style.display = 'none';
+
+                    resultCount.textContent = `${data.totalResults} results found`;
+
+                    data.results.forEach(result => {
+                        const resultItem = document.createElement('li');
+                        resultItem.classList.add('result-item');
+                        resultItem.innerHTML = `
+                            <div class="result-title">${result.title}</div>
+                            <div class="result-url">${result.url}</div>
+                        `;
+                        resultItem.addEventListener('click', () => openModal(result.title, result.url));
+                        searchResults.appendChild(resultItem);
+                    });
+
+                    if (data.totalPages > 1) {
+                        for (let i = 1; i <= data.totalPages; i++) {
+                            const pageLink = document.createElement('a');
+                            pageLink.href = '#';
+                            pageLink.textContent = i;
+                            if (i === currentPage) {
+                                pageLink.classList.add('active');
+                            }
+                            pageLink.addEventListener('click', () => {
+                                currentPage = i;
+                                search();
+                            });
+                            pagination.appendChild(pageLink);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching search results:', error);
+                    loadingSpinner.style.display = 'none';
+                    searchResults.innerHTML = '<li>Error fetching search results. Please try again later.</li>';
+                });
+        }
+
+        function openModal(title, url) {
+            const modal = document.getElementById('result-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalUrl = document.getElementById('modal-url');
+            modal.style.display = 'block';
+            modalTitle.textContent = title;
+            modalUrl.innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('result-modal');
+            modal.style.display = 'none';
+        }
+
+        document.getElementById('search-input').addEventListener('input', () => {
+            autocomplete();
+        });
+
+        document.addEventListener('click', event => {
+            if (!event.target.matches('#search-input')) {
+                const autocompleteResults = document.getElementById('autocomplete-results');
+                autocompleteResults.innerHTML = '';
+            }
+        });
+
+        function autocomplete() {
+            const query = document.getElementById('search-input').value.trim();
+
+            fetch(`/autocomplete?q=${query}`)
+                .then(response => response.json())
+                .then(data => {
+                    const autocompleteResults = document.getElementById('autocomplete-results');
+                    autocompleteResults.innerHTML = '';
+
+                    data.forEach(suggestion => {
+                        const suggestionItem = document.createElement('div');
+                        suggestionItem.textContent = suggestion;
+                        suggestionItem.classList.add('autocomplete-item');
+                        suggestionItem.addEventListener('click', () => {
+                            document.getElementById('search-input').value = suggestion;
+                            autocompleteResults.innerHTML = '';
+                        });
+                        autocompleteResults.appendChild(suggestionItem);
+                    });
+                })
+                .catch(error => console.error('Error fetching autocomplete suggestions:', error));
+        }
+    </script>
+</body>
+</html>
+his is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+
+      # Runs a single command using the runners shell
+      - name: Run a one-line script
+        run: echo Hello, world!
+
+      # Runs a set of commands using the runners shell
+      - name: Run a multi-line script
+        run: |
+          echo Add other actions to build,
+          echo test, and deploy your project.
+
