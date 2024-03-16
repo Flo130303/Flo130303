@@ -1,0 +1,12 @@
+search-engine-backend/
+  |- src/
+      |- routes/
+          |- searchRoutes.js
+          |- autocompleteRoutes.js
+      |- middleware/
+          |- errorMiddleware.js
+          |- rateLimitMiddleware.js
+          |- corsMiddleware.js
+      |- server.js
+  |- package.json
+  |- .gitignore
